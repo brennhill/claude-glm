@@ -6,9 +6,12 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 ROOT_DIR=$(cd "$SCRIPT_DIR/.." && pwd)
 BIN_DIR="$ROOT_DIR/bin"
 TEMPLATE_CONFIG="$ROOT_DIR/templates/zai.json.example"
-TARGET_CONFIG="${HOME}/.zai.json"
+TARGET_CONFIG_DIR="${HOME}/.aiwrap/providers"
+TARGET_CONFIG="${TARGET_CONFIG_DIR}/glm.json"
 START_MARKER='# >>> glm wrapper >>>'
-END_MARKER='# <<< glm wrapper <<<'
+LEGACY_END_MARKER='# <<< glm wrapper <<<'
+NEW_START_MARKER='# >>> aiwrap >>>'
+NEW_END_MARKER='# <<< aiwrap <<<'
 
 ensure_rc_block() {
   local rc_file=$1
@@ -19,7 +22,9 @@ ensure_rc_block() {
   touch "$rc_file"
 
   temp_file=$(mktemp)
-  awk -v start="$START_MARKER" -v end="$END_MARKER" '
+  awk -v legacy_start="$START_MARKER" -v legacy_end="$LEGACY_END_MARKER" -v start="$NEW_START_MARKER" -v end="$NEW_END_MARKER" '
+    $0 == legacy_start { in_block=1; next }
+    $0 == legacy_end { in_block=0; next }
     $0 == start { in_block=1; next }
     $0 == end { in_block=0; next }
     !in_block { print }
@@ -28,9 +33,10 @@ ensure_rc_block() {
 
   block=$(
     cat <<EOF
-$START_MARKER
+$NEW_START_MARKER
 export PATH="$BIN_DIR:\$PATH"
-$END_MARKER
+glm() { aiwrap claude glm "\$@"; }
+$NEW_END_MARKER
 EOF
   )
 
@@ -44,6 +50,7 @@ EOF
 }
 
 install_config() {
+  mkdir -p "$TARGET_CONFIG_DIR"
   if [[ -f "$TARGET_CONFIG" ]]; then
     chmod 600 "$TARGET_CONFIG"
     printf 'Using existing %s\n' "$TARGET_CONFIG"
@@ -57,7 +64,7 @@ install_config() {
 }
 
 install_main() {
-  [[ -x "$BIN_DIR/glm" ]] || printf 'Warning: %s is not executable yet.\n' "$BIN_DIR/glm" >&2
+  [[ -x "$BIN_DIR/aiwrap" ]] || printf 'Warning: %s is not executable yet.\n' "$BIN_DIR/aiwrap" >&2
 
   ensure_rc_block "${HOME}/.zshrc"
   ensure_rc_block "${HOME}/.zprofile"
@@ -65,7 +72,7 @@ install_main() {
   ensure_rc_block "${HOME}/.bash_profile"
   install_config
 
-  printf 'glm installation complete. Restart your shell or source your rc file.\n'
+  printf 'aiwrap installation complete. Restart your shell or source your rc file.\n'
 }
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then

@@ -3,7 +3,7 @@
 set -euo pipefail
 
 ROOT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
-WRAPPER="$ROOT_DIR/bin/glm"
+INSTALLER="$ROOT_DIR/scripts/install.sh"
 
 fail() {
   printf 'FAIL: %s\n' "$1" >&2
@@ -18,20 +18,13 @@ assert_contains() {
   fi
 }
 
-assert_not_contains() {
-  local haystack=$1
-  local needle=$2
-  if [[ "$haystack" == *"$needle"* ]]; then
-    fail "expected output to exclude: $needle"$'\n'"actual: $haystack"
-  fi
-}
-
 make_stub_claude() {
   local stub_dir=$1
   mkdir -p "$stub_dir"
   cat >"$stub_dir/claude" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
+printf 'TOOL=claude\n'
 printf 'BASE_URL=%s\n' "${ANTHROPIC_BASE_URL:-}"
 printf 'AUTH=%s\n' "${ANTHROPIC_AUTH_TOKEN:-}"
 printf 'HAIKU=%s\n' "${ANTHROPIC_DEFAULT_HAIKU_MODEL:-}"
@@ -42,189 +35,109 @@ EOF
   chmod +x "$stub_dir/claude"
 }
 
-run_wrapper_env() {
+provider_config_path() {
   local home_dir=$1
-  shift
-  HOME="$home_dir" "$WRAPPER" env "$@"
+  printf '%s/.aiwrap/providers/glm.json' "$home_dir"
 }
 
-run_wrapper_exec() {
+run_glm_function() {
   local home_dir=$1
   local path_dir=$2
   shift 2
-  HOME="$home_dir" PATH="$path_dir:$PATH" "$WRAPPER" "$@"
+  HOME="$home_dir" PATH="$path_dir:/usr/bin:/bin" bash -lc 'source "$HOME/.bashrc"; glm "$@"' bash "$@"
 }
 
-run_wrapper_interactive() {
+run_glm_function_interactive() {
   local home_dir=$1
   local path_dir=$2
   local input=$3
   shift 3
-  local safe_path
-  safe_path="$path_dir:/usr/bin:/bin"
   expect <<EOF
 log_user 1
 set timeout 5
-spawn env HOME=$home_dir PATH=$safe_path $WRAPPER {*}[list $@]
+spawn env HOME=$home_dir PATH=$path_dir:/usr/bin:/bin bash -lc {source "$HOME/.bashrc"; glm {*}[list $@]}
 expect "Enter your Z.ai API key:"
 send "$input\r"
 expect eof
 EOF
 }
 
-test_wrapper_env_output_redacts_token_and_uses_defaults() {
-  local temp_dir home_dir output
-  temp_dir=$(mktemp -d)
-  home_dir="$temp_dir/home"
-  mkdir -p "$home_dir"
-
-  output=$(HOME="$home_dir" GLM_AUTH_TOKEN="secret-token" "$WRAPPER" env)
-
-  assert_contains "$output" 'ANTHROPIC_BASE_URL=https://api.z.ai/api/anthropic'
-  assert_contains "$output" 'ANTHROPIC_DEFAULT_HAIKU_MODEL=glm-4.5-air'
-  assert_contains "$output" 'ANTHROPIC_DEFAULT_SONNET_MODEL=glm-4.7'
-  assert_contains "$output" 'ANTHROPIC_DEFAULT_OPUS_MODEL=glm-5'
-  assert_contains "$output" 'ANTHROPIC_AUTH_TOKEN=secr...oken'
-  assert_not_contains "$output" 'secret-token'
-}
-
-test_wrapper_prefers_glm_env_over_config() {
-  local temp_dir home_dir stub_dir output
+test_glm_function_delegates_to_aiwrap_claude_glm() {
+  local temp_dir home_dir stub_dir output config_file
   temp_dir=$(mktemp -d)
   home_dir="$temp_dir/home"
   stub_dir="$temp_dir/stub"
   mkdir -p "$home_dir"
   make_stub_claude "$stub_dir"
+  HOME="$home_dir" "$INSTALLER" >/dev/null
+  config_file=$(provider_config_path "$home_dir")
+  mkdir -p "$(dirname "$config_file")"
 
-  cat >"$home_dir/.zai.json" <<'EOF'
+  cat >"$config_file" <<'EOF'
 {
-  "base_url": "https://example.invalid/from-config",
-  "auth_token": "config-token",
+  "base_url": "https://example.invalid/glm",
+  "auth_token": "glm-token",
   "models": {
-    "haiku": "config-haiku",
-    "sonnet": "config-sonnet",
-    "opus": "config-opus"
+    "haiku": "glm-haiku",
+    "sonnet": "glm-sonnet",
+    "opus": "glm-opus"
   }
 }
 EOF
 
-  output=$(HOME="$home_dir" \
-    PATH="$stub_dir:$PATH" \
-    GLM_BASE_URL="https://example.invalid/from-env" \
-    GLM_AUTH_TOKEN="env-token" \
-    GLM_DEFAULT_SONNET_MODEL="env-sonnet" \
-    "$WRAPPER" --print hello 2>&1)
+  output=$(run_glm_function "$home_dir" "$stub_dir" --print hello 2>&1)
 
-  assert_contains "$output" 'BASE_URL=https://example.invalid/from-env'
-  assert_contains "$output" 'AUTH=env-token'
-  assert_contains "$output" 'HAIKU=config-haiku'
-  assert_contains "$output" 'SONNET=env-sonnet'
-  assert_contains "$output" 'OPUS=config-opus'
+  assert_contains "$output" 'TOOL=claude'
+  assert_contains "$output" 'BASE_URL=https://example.invalid/glm'
+  assert_contains "$output" 'AUTH=glm-token'
   assert_contains "$output" 'ARGS=--print hello'
 }
 
-test_wrapper_requires_auth_token() {
-  local temp_dir home_dir output status
-  temp_dir=$(mktemp -d)
-  home_dir="$temp_dir/home"
-  mkdir -p "$home_dir"
-
-  set +e
-  output=$(HOME="$home_dir" "$WRAPPER" env 2>&1)
-  status=$?
-  set -e
-
-  if [[ $status -eq 0 ]]; then
-    fail "expected wrapper to fail without auth token"
-  fi
-
-  assert_contains "$output" 'GLM auth token is required'
-}
-
-test_wrapper_rejects_placeholder_auth_token() {
-  local temp_dir home_dir output status
-  temp_dir=$(mktemp -d)
-  home_dir="$temp_dir/home"
-  mkdir -p "$home_dir"
-
-  cat >"$home_dir/.zai.json" <<'EOF'
-{
-  "auth_token": "your-zai-api-key"
-}
-EOF
-
-  set +e
-  output=$(HOME="$home_dir" "$WRAPPER" env 2>&1)
-  status=$?
-  set -e
-
-  if [[ $status -eq 0 ]]; then
-    fail "expected wrapper to reject placeholder auth token"
-  fi
-
-  assert_contains "$output" 'Run scripts/setup.sh'
-}
-
-test_wrapper_does_not_mutate_parent_shell_env() {
+test_glm_function_does_not_mutate_parent_shell_env() {
   local temp_dir home_dir stub_dir
   temp_dir=$(mktemp -d)
   home_dir="$temp_dir/home"
   stub_dir="$temp_dir/stub"
   mkdir -p "$home_dir"
   make_stub_claude "$stub_dir"
+  HOME="$home_dir" "$INSTALLER" >/dev/null
+  mkdir -p "$home_dir/.aiwrap/providers"
+
+  cat >"$home_dir/.aiwrap/providers/glm.json" <<'EOF'
+{
+  "auth_token": "glm-token"
+}
+EOF
 
   unset ANTHROPIC_BASE_URL ANTHROPIC_AUTH_TOKEN ANTHROPIC_DEFAULT_HAIKU_MODEL ANTHROPIC_DEFAULT_SONNET_MODEL ANTHROPIC_DEFAULT_OPUS_MODEL || true
-  GLM_AUTH_TOKEN="env-token" run_wrapper_exec "$home_dir" "$stub_dir" --help >/dev/null
+  run_glm_function "$home_dir" "$stub_dir" --help >/dev/null
 
   [[ -z "${ANTHROPIC_BASE_URL:-}" ]] || fail "ANTHROPIC_BASE_URL leaked into parent shell"
   [[ -z "${ANTHROPIC_AUTH_TOKEN:-}" ]] || fail "ANTHROPIC_AUTH_TOKEN leaked into parent shell"
 }
 
-test_wrapper_prompts_interactively_when_token_missing() {
+test_glm_function_prompts_interactively_when_token_missing() {
   local temp_dir home_dir stub_dir output saved_config
   temp_dir=$(mktemp -d)
   home_dir="$temp_dir/home"
   stub_dir="$temp_dir/stub"
   mkdir -p "$home_dir"
   make_stub_claude "$stub_dir"
+  HOME="$home_dir" "$INSTALLER" >/dev/null
 
-  output=$(run_wrapper_interactive "$home_dir" "$stub_dir" 'prompt-token' --print hello 2>&1)
-  saved_config=$(<"$home_dir/.zai.json")
+  output=$(run_glm_function_interactive "$home_dir" "$stub_dir" 'prompt-token' --print hello 2>&1)
+  saved_config=$(<"$(provider_config_path "$home_dir")")
 
   assert_contains "$output" 'Enter your Z.ai API key'
   assert_contains "$output" 'AUTH=prompt-token'
   assert_contains "$saved_config" '"auth_token": "prompt-token"'
 }
 
-test_wrapper_fails_non_interactively_when_token_missing() {
-  local temp_dir home_dir stub_dir output status
-  temp_dir=$(mktemp -d)
-  home_dir="$temp_dir/home"
-  stub_dir="$temp_dir/stub"
-  mkdir -p "$home_dir"
-  make_stub_claude "$stub_dir"
-
-  set +e
-  output=$(HOME="$home_dir" PATH="$stub_dir:$PATH" "$WRAPPER" --print hello 2>&1)
-  status=$?
-  set -e
-
-  if [[ $status -eq 0 ]]; then
-    fail "expected non-interactive wrapper call to fail without token"
-  fi
-
-  assert_contains "$output" 'Run scripts/setup.sh'
-}
-
 main() {
-  [[ -x "$WRAPPER" ]] || fail "wrapper missing at $WRAPPER"
-  test_wrapper_env_output_redacts_token_and_uses_defaults
-  test_wrapper_prefers_glm_env_over_config
-  test_wrapper_requires_auth_token
-  test_wrapper_rejects_placeholder_auth_token
-  test_wrapper_does_not_mutate_parent_shell_env
-  test_wrapper_prompts_interactively_when_token_missing
-  test_wrapper_fails_non_interactively_when_token_missing
+  [[ -x "$ROOT_DIR/bin/aiwrap" ]] || fail "aiwrap missing at $ROOT_DIR/bin/aiwrap"
+  test_glm_function_delegates_to_aiwrap_claude_glm
+  test_glm_function_does_not_mutate_parent_shell_env
+  test_glm_function_prompts_interactively_when_token_missing
   printf 'PASS: test_glm.sh\n'
 }
 

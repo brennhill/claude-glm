@@ -1,0 +1,54 @@
+<svg width="1280" height="640" viewBox="0 0 1280 640" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="84" y1="52" x2="1174" y2="608" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0A1020"/>
+      <stop offset="0.5" stop-color="#102B45"/>
+      <stop offset="1" stop-color="#0D5C63"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="300" y1="120" x2="980" y2="520" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#84F3D2"/>
+      <stop offset="1" stop-color="#8EB9FF"/>
+    </linearGradient>
+    <filter id="blur" x="0" y="0" width="1280" height="640" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="48"/>
+    </filter>
+  </defs>
+  <rect width="1280" height="640" rx="28" fill="url(#bg)"/>
+  <g opacity="0.55" filter="url(#blur)">
+    <circle cx="1034" cy="154" r="126" fill="#84F3D2"/>
+    <circle cx="217" cy="535" r="110" fill="#4FA5FF"/>
+    <circle cx="807" cy="425" r="138" fill="#2FE0A0"/>
+  </g>
+  <rect x="72" y="72" width="1136" height="496" rx="24" fill="white" fill-opacity="0.05" stroke="white" stroke-opacity="0.14"/>
+  <rect x="104" y="108" width="176" height="44" rx="22" fill="white" fill-opacity="0.12"/>
+  <text x="128" y="137" fill="#D9F8EE" font-family="SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="22">aiwrap &lt;tool&gt; &lt;provider&gt;</text>
+  <text x="104" y="240" fill="white" font-family="Helvetica, Arial, sans-serif" font-size="88" font-weight="700">AIWrap</text>
+  <text x="104" y="332" fill="white" font-family="Helvetica, Arial, sans-serif" font-size="88" font-weight="700">Tool to Provider</text>
+  <text x="107" y="392" fill="#D4E4F7" font-family="Helvetica, Arial, sans-serif" font-size="30">A local launcher that remaps endpoint, auth, and model defaults only inside the wrapped child process.</text>
+  <g opacity="0.95">
+    <rect x="104" y="458" width="182" height="62" rx="18" fill="#0F1E2E"/>
+    <text x="138" y="497" fill="#8FEFCC" font-family="SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="28">haiku</text>
+    <text x="138" y="526" fill="#CFE3FF" font-family="SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="18">glm-4.5-air</text>
+  </g>
+  <g opacity="0.95">
+    <rect x="308" y="458" width="182" height="62" rx="18" fill="#0F1E2E"/>
+    <text x="340" y="497" fill="#A4CBFF" font-family="SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="28">sonnet</text>
+    <text x="340" y="526" fill="#CFE3FF" font-family="SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="18">glm-4.7</text>
+  </g>
+  <g opacity="0.95">
+    <rect x="512" y="458" width="182" height="62" rx="18" fill="#0F1E2E"/>
+    <text x="556" y="497" fill="#D1F7A5" font-family="SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="28">opus</text>
+    <text x="556" y="526" fill="#CFE3FF" font-family="SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="18">glm-5</text>
+  </g>
+  <g opacity="0.88">
+    <path d="M884 208C884 175.967 909.967 150 942 150H1065C1097.03 150 1123 175.967 1123 208V431C1123 463.033 1097.03 489 1065 489H942C909.967 489 884 463.033 884 431V208Z" fill="#091320" stroke="url(#accent)" stroke-width="2"/>
+    <rect x="914" y="192" width="178" height="28" rx="14" fill="white" fill-opacity="0.07"/>
+    <text x="940" y="212" fill="#9AB6D8" font-family="SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="16">adapter output</text>
+    <text x="922" y="266" fill="#84F3D2" font-family="SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="18">ANTHROPIC_BASE_URL</text>
+    <text x="922" y="292" fill="#D4E4F7" font-family="SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="16">https://api.z.ai/api/anthropic</text>
+    <text x="922" y="338" fill="#84F3D2" font-family="SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="18">OPENAI_MODEL / ANTHROPIC_*</text>
+    <text x="922" y="364" fill="#D4E4F7" font-family="SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="16">set by tool adapter</text>
+    <text x="922" y="410" fill="#84F3D2" font-family="SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="18">AUTH TOKEN</text>
+    <text x="922" y="436" fill="#D4E4F7" font-family="SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="16">scoped to the wrapped process</text>
+  </g>
+</svg>

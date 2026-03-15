@@ -1,63 +1,131 @@
-# GLM Wrapper for Claude Code
+<p align="center">
+  <img src="assets/header.svg" alt="AIWrap header" width="100%" />
+</p>
 
-This repo installs a `glm` command that wraps the local `claude` CLI and points it at the GLM/Z.ai Anthropic-compatible API without exporting Anthropic variables into every terminal.
+# AIWrap
 
-The wrapper shadows these variables only for the `claude` child process:
+`aiwrap` is a small launcher that lets one local AI CLI run against a different backend provider.
 
-- `ANTHROPIC_BASE_URL`
-- `ANTHROPIC_AUTH_TOKEN`
-- `ANTHROPIC_DEFAULT_HAIKU_MODEL`
-- `ANTHROPIC_DEFAULT_SONNET_MODEL`
-- `ANTHROPIC_DEFAULT_OPUS_MODEL`
-
-Default mappings:
-
-- `ANTHROPIC_BASE_URL=https://api.z.ai/api/anthropic`
-- `ANTHROPIC_DEFAULT_HAIKU_MODEL=glm-4.5-air`
-- `ANTHROPIC_DEFAULT_SONNET_MODEL=glm-4.7`
-- `ANTHROPIC_DEFAULT_OPUS_MODEL=glm-5`
-
-## Requirements
-
-- Claude Code CLI installed and available as `claude`
-- `zsh` and/or `bash`
-- `jq` is supported if present, but not required
-
-Check that Claude is installed:
+The core command shape is:
 
 ```bash
-command -v claude
+aiwrap <tool> <provider> [tool args...]
 ```
+
+This repo currently supports:
+
+- `aiwrap claude glm`
+- `aiwrap codex claude`
+
+It also installs a convenience shell function:
+
+```bash
+glm() { aiwrap claude glm "$@"; }
+```
+
+So `glm` remains the fast path for the original Claude-on-GLM workflow, while `aiwrap` is the real implementation surface.
+
+## What It Does
+
+AIWrap composes two layers:
+
+- a **tool adapter** for the local CLI you want to launch
+- a **provider profile** for the backend you want that CLI to talk to
+
+For example:
+
+- `aiwrap claude glm` launches the local `claude` binary with Anthropic-style environment variables pointed at GLM / Z.ai
+- `aiwrap codex claude` launches the local `codex` binary with OpenAI-style environment variables pointed at a Claude provider profile
+
+What wrappers like this can do well:
+
+- swap base URLs
+- swap auth token sources
+- set default model mappings
+- isolate those changes to the wrapped child process
+
+What they do **not** guarantee:
+
+- full protocol translation between incompatible ecosystems
+- identical streaming behavior
+- identical tool-calling semantics
+- support for every feature each upstream CLI may assume
+
+This version is intentionally explicit: unsupported tool/provider pairs fail instead of guessing.
+
+## Supported Tools
+
+- `claude`
+- `codex`
+
+## Supported Providers
+
+- `glm`
+- `claude`
+
+## Supported Pairs
+
+| Command | Meaning |
+| --- | --- |
+| `aiwrap claude glm` | Run Claude Code against GLM / Z.ai |
+| `aiwrap codex claude` | Run Codex against a Claude provider profile |
+
+Anything else currently fails with a clear unsupported-pair error.
+
+## Model Mapping
+
+### `glm` provider defaults
+
+| Alias | Model ID |
+| --- | --- |
+| `haiku` | `glm-4.5-air` |
+| `sonnet` | `glm-4.7` |
+| `opus` | `glm-5` |
+
+Default endpoint:
+
+```text
+https://api.z.ai/api/anthropic
+```
+
+### `claude` provider defaults
+
+The bundled `claude` provider profile ships with placeholder defaults intended as a starting point for the `codex -> claude` path. You should review and adjust the exact values in your provider config for your environment.
 
 ## Setup
 
-Recommended first-time setup:
+Recommended first-time setup for GLM:
 
 ```bash
 scripts/setup.sh
 ```
 
-`scripts/setup.sh`:
+That:
 
-- checks that `claude` is installed
-- runs the shell installer
-- prompts for your Z.ai API key
-- writes the token into `~/.zai.json`
-- preserves existing base URL and model mappings if the config already exists
+- checks that `claude` exists locally
+- runs the installer
+- prompts for the provider token
+- writes provider config under `~/.aiwrap/providers/`
 
-If a usable token already exists, `scripts/setup.sh` keeps it and prints a reminder that you can rotate it with:
+Provider-specific setup is also supported:
+
+```bash
+scripts/setup.sh glm
+scripts/setup.sh claude
+```
+
+Rotate an existing provider token:
 
 ```bash
 scripts/setup.sh --reset-token
+scripts/setup.sh claude --reset-token
 ```
 
-That flag prompts for a new key and updates only `auth_token`.
+If a usable token already exists, setup keeps it and prints the `--reset-token` reminder instead of overwriting it silently.
 
-## Install Only
+## Install
 
-If you only want the shell wiring and do not want to enter the token yet:
-
-From this repo:
+If you only want the shell wiring:
 
 ```bash
 scripts/install.sh
@@ -65,47 +133,36 @@ scripts/install.sh
 
 The installer:
 
-- adds this repo's `bin` directory to your shell startup files
-- updates:
+- adds this repo's `bin` directory to `PATH`
+- writes a managed shell block into:
   - `~/.zshrc`
   - `~/.zprofile`
   - `~/.bashrc`
   - `~/.bash_profile`
-- creates `~/.zai.json` from the example template if it does not already exist
-- sets `~/.zai.json` permissions to `600`
+- installs the `glm()` shell function over `aiwrap claude glm "$@"`
+- bootstraps `~/.aiwrap/providers/glm.json` if it does not exist
 
-After install, reload your shell:
+After install, restart your shell or source the relevant rc file.
 
-```bash
-source ~/.zshrc
-```
+## Config Layout
 
-Or for bash:
-
-```bash
-source ~/.bashrc
-```
-
-You can also just open a new terminal and run:
-
-```bash
-command -v glm
-```
-
-Expected result:
+Provider config lives under:
 
 ```text
-/absolute/path/to/this/repo/bin/glm
+~/.aiwrap/providers/
 ```
 
-## Configure `~/.zai.json`
+Examples:
 
-The installer creates this file if missing:
+- `~/.aiwrap/providers/glm.json`
+- `~/.aiwrap/providers/claude.json`
+
+A provider config looks like:
 
 ```json
 {
   "base_url": "https://api.z.ai/api/anthropic",
-  "auth_token": "your-zai-api-key",
+  "auth_token": "your-provider-key",
   "models": {
     "haiku": "glm-4.5-air",
     "sonnet": "glm-4.7",
@@ -114,135 +171,93 @@ The installer creates this file if missing:
 }
 ```
 
-Replace `"your-zai-api-key"` with your real Z.ai key before using `glm`, or just run:
-
-```bash
-scripts/setup.sh
-```
-
-## Environment Variable Overrides
-
-You can override the config file on a per-command basis with `GLM_*` variables:
-
-- `GLM_BASE_URL`
-- `GLM_AUTH_TOKEN`
-- `GLM_DEFAULT_HAIKU_MODEL`
-- `GLM_DEFAULT_SONNET_MODEL`
-- `GLM_DEFAULT_OPUS_MODEL`
-
-Example:
-
-```bash
-GLM_AUTH_TOKEN=your-real-token glm --help
-```
-
-The wrapper maps those to the `ANTHROPIC_*` variables only for the wrapped `claude` process.
+For Codex-oriented provider configs, a `models.default` key is also supported.
 
 ## Usage
 
-Run Claude Code against GLM:
+Primary interface:
+
+```bash
+aiwrap claude glm
+aiwrap claude glm --model sonnet
+aiwrap codex claude
+```
+
+Convenience function:
 
 ```bash
 glm
-```
-
-If `glm` is run interactively and no usable token is configured, it will prompt for the token, save it to `~/.zai.json`, and continue.
-
-Pass arbitrary Claude arguments through unchanged:
-
-```bash
 glm --help
 glm --print "hello"
-glm -c
 ```
 
-Inspect the effective wrapped environment with token redaction:
+If a wrapped command is run interactively and its provider token is missing, AIWrap prompts for the token, saves it to the matching provider config file, and continues.
+
+## Creating Your Own Shortcuts
+
+Because `aiwrap` is generic, you can define your own shell functions on top of it:
 
 ```bash
-glm env
+cclaude() { aiwrap codex claude "$@"; }
+cglm() { aiwrap codex glm "$@"; }
 ```
 
-Example output:
+Those examples may still fail today if the underlying pair is unsupported, but the shell pattern is the intended extension model.
 
-```text
-ANTHROPIC_BASE_URL=https://api.z.ai/api/anthropic
-ANTHROPIC_AUTH_TOKEN=test...oken
-ANTHROPIC_DEFAULT_HAIKU_MODEL=glm-4.5-air
-ANTHROPIC_DEFAULT_SONNET_MODEL=glm-4.7
-ANTHROPIC_DEFAULT_OPUS_MODEL=glm-5
-```
+## Verification
 
-## Behavior
-
-Configuration precedence is:
-
-1. `GLM_*` environment variables
-2. `~/.zai.json`
-3. built-in defaults
-
-The wrapper will fail fast when:
-
-- `claude` is not installed
-- no auth token is configured in a non-interactive context
-- the config file is malformed
-- the config still contains the placeholder token
-
-## Files
-
-- `bin/glm`: wrapper executable
-- `scripts/install.sh`: idempotent installer
-- `templates/zai.json.example`: example config template
-- `tests/test_glm.sh`: wrapper tests
-- `tests/test_install.sh`: installer tests
-
-## Verify
-
-Run the test suite:
+Run the current test suite:
 
 ```bash
-bash tests/test_glm.sh
+bash tests/test_aiwrap.sh
+bash tests/test_setup.sh
 bash tests/test_install.sh
+bash tests/test_glm.sh
 ```
 
-Smoke test the wrapper:
+Smoke checks:
 
 ```bash
-GLM_AUTH_TOKEN=your-real-token glm env
-GLM_AUTH_TOKEN=your-real-token glm --help
+aiwrap claude glm --help
+aiwrap codex claude --help
+type glm
 ```
 
-Or test the guided flow:
+## Repo Layout
 
-```bash
-scripts/setup.sh
-glm
-```
-
-Rotate the saved token:
-
-```bash
-scripts/setup.sh --reset-token
-```
+- `bin/aiwrap`: primary launcher
+- `assets/header.svg`: README banner image
+- `scripts/install.sh`: shell installer
+- `scripts/setup.sh`: interactive provider setup and token rotation
+- `scripts/lib/tools/`: tool adapters
+- `scripts/lib/providers/`: provider profiles
+- `scripts/lib/aiwrap-config.sh`: shared config helpers
+- `templates/zai.json.example`: seed JSON used for provider bootstrap
+- `tests/test_aiwrap.sh`: core dispatch tests
+- `tests/test_setup.sh`: setup tests
+- `tests/test_install.sh`: install tests
+- `tests/test_glm.sh`: compatibility tests for the `glm()` shell function
 
 ## Troubleshooting
 
+If `aiwrap` is not found:
+
+- open a new shell
+- check that this repo's `bin` directory is on `PATH`
+- rerun `scripts/install.sh`
+
 If `glm` is not found:
 
-- open a new terminal, or source your shell startup file
-- verify the installer block exists in your rc/profile files
-- run `command -v glm`
+- source your shell rc file again
+- run `type glm`
+- confirm the managed shell block was written successfully
 
-If `glm` says the auth token is required:
+If setup fails because a token is missing:
 
-- run `scripts/setup.sh`, or
-- set `auth_token` in `~/.zai.json`, or
-- use `GLM_AUTH_TOKEN=... glm ...`
+- rerun `scripts/setup.sh`
+- use `--reset-token` if a stale token already exists
 
-If `glm` says the placeholder token must be replaced:
+If a command fails with an unsupported pair error:
 
-- edit `~/.zai.json` and replace `"your-zai-api-key"` with the real value
-
-If Claude still points at Anthropic in other terminals:
-
-- that is expected unless you exported `ANTHROPIC_*` yourself
-- this wrapper only shadows those variables for the `glm` process tree
+- use one of the currently supported pairs
+- or add the missing tool/provider support in this repo first
