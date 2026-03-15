@@ -225,6 +225,30 @@ EOF
   assert_contains "$saved_config" '"auth_token": "fresh-token"'
 }
 
+test_aiwrap_prompts_with_provider_specific_label() {
+  local temp_dir home_dir stub_dir output saved_config
+  temp_dir=$(mktemp -d)
+  home_dir="$temp_dir/home"
+  stub_dir="$temp_dir/stub"
+  mkdir -p "$home_dir"
+  make_stub_codex "$stub_dir"
+
+  output=$(expect <<EOF
+log_user 1
+set timeout 5
+spawn env HOME=$home_dir PATH=$stub_dir:/usr/bin:/bin $AIWRAP codex claude exec hi
+expect "Enter your Anthropic API key:"
+send "anthropic-token\r"
+expect eof
+EOF
+)
+  saved_config=$(<"$home_dir/.aiwrap/providers/claude.json")
+
+  assert_contains "$output" 'Enter your Anthropic API key'
+  assert_contains "$output" 'AUTH=anthropic-token'
+  assert_contains "$saved_config" '"auth_token": "anthropic-token"'
+}
+
 main() {
   [[ -x "$AIWRAP" ]] || fail "aiwrap missing at $AIWRAP"
   test_aiwrap_dispatches_claude_glm
@@ -235,6 +259,7 @@ main() {
   test_aiwrap_forwards_args_to_selected_tool
   test_aiwrap_preserves_current_working_directory
   test_aiwrap_creates_missing_provider_config_interactively
+  test_aiwrap_prompts_with_provider_specific_label
   printf 'PASS: test_aiwrap.sh\n'
 }
 

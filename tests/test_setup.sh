@@ -172,6 +172,27 @@ test_setup_accepts_provider_argument() {
   assert_contains "$saved_config" '"auth_token": "claude-provider-token"'
 }
 
+test_setup_uses_provider_specific_prompt_label() {
+  local temp_dir home_dir stub_dir output
+  temp_dir=$(mktemp -d)
+  home_dir="$temp_dir/home"
+  stub_dir="$temp_dir/stub"
+  mkdir -p "$home_dir"
+  make_stub_claude "$stub_dir"
+
+  output=$(expect <<EOF
+log_user 1
+set timeout 5
+spawn env HOME=$home_dir PATH=$stub_dir:/usr/bin:/bin $SETUP_SCRIPT claude
+expect "Enter your Anthropic API key:"
+send "claude-setup-token\r"
+expect eof
+EOF
+)
+
+  assert_contains "$output" 'Enter your Anthropic API key'
+}
+
 test_setup_defaults_to_glm_provider() {
   local temp_dir home_dir stub_dir output
   temp_dir=$(mktemp -d)
@@ -222,6 +243,7 @@ main() {
   test_setup_mentions_reset_flag_when_token_exists
   test_setup_reset_token_updates_existing_key
   test_setup_accepts_provider_argument
+  test_setup_uses_provider_specific_prompt_label
   test_setup_defaults_to_glm_provider
   test_setup_fails_noninteractively_without_token
   test_setup_does_not_require_claude_binary

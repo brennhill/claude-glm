@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 provider_claude_defaults() {
+  provider_default_auth_label="Anthropic"
   provider_default_base_url="https://api.anthropic.com"
   provider_default_haiku_model="claude-3-5-haiku-latest"
   provider_default_sonnet_model="claude-sonnet-4-0"

@@ -58,7 +58,7 @@ aiwrap_is_interactive() {
 aiwrap_prompt_for_token() {
   local token
   aiwrap_is_interactive || aiwrap_die "Provider auth token is required. Run scripts/setup.sh or set the provider config explicitly."
-  printf 'Enter your Z.ai API key: ' >&2
+  printf 'Enter your %s API key: ' "${provider_default_auth_label:-provider}" >&2
   IFS= read -r -s token
   printf '\n' >&2
   [[ -n "$token" ]] || aiwrap_die "A non-empty provider API key is required."
