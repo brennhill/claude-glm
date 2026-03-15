@@ -48,7 +48,7 @@ fi
 binary=$("tool_${tool}_binary")
 [[ -n "$binary" ]] || aiwrap_die "Required tool binary '$tool' was not found in PATH"
 
-aiwrap_load_provider_config "$provider"
+aiwrap_load_provider_config "$provider" || true
 if ! aiwrap_has_usable_token "$provider_config_auth_token"; then
   provider_config_auth_token=$(aiwrap_prompt_for_token)
   aiwrap_write_provider_config "$provider" "$provider_config_auth_token"

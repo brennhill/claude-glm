@@ -202,6 +202,19 @@ test_setup_fails_noninteractively_without_token() {
   assert_contains "$output" 'auth token is required'
 }
 
+test_setup_does_not_require_claude_binary() {
+  local temp_dir home_dir output saved_config
+  temp_dir=$(mktemp -d)
+  home_dir="$temp_dir/home"
+  mkdir -p "$home_dir"
+
+  output=$(run_setup_interactive "$home_dir" "/usr/bin:/bin" 'no-claude-token' 2>&1)
+  saved_config=$(<"$(provider_config_path "$home_dir" "glm")")
+
+  assert_contains "$output" 'Saved token'
+  assert_contains "$saved_config" '"auth_token": "no-claude-token"'
+}
+
 main() {
   [[ -x "$SETUP_SCRIPT" ]] || fail "setup script missing at $SETUP_SCRIPT"
   test_setup_prompts_for_token_and_writes_glm_provider_config
@@ -211,6 +224,7 @@ main() {
   test_setup_accepts_provider_argument
   test_setup_defaults_to_glm_provider
   test_setup_fails_noninteractively_without_token
+  test_setup_does_not_require_claude_binary
   printf 'PASS: test_setup.sh\n'
 }
 

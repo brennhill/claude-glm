@@ -201,6 +201,30 @@ test_aiwrap_preserves_current_working_directory() {
   assert_contains "$output" "PWD=$work_dir"
 }
 
+test_aiwrap_creates_missing_provider_config_interactively() {
+  local temp_dir home_dir stub_dir output saved_config
+  temp_dir=$(mktemp -d)
+  home_dir="$temp_dir/home"
+  stub_dir="$temp_dir/stub"
+  mkdir -p "$home_dir"
+  make_stub_claude "$stub_dir"
+
+  output=$(expect <<EOF
+log_user 1
+set timeout 5
+spawn env HOME=$home_dir PATH=$stub_dir:/usr/bin:/bin $AIWRAP claude glm --help
+expect "Enter your Z.ai API key:"
+send "fresh-token\r"
+expect eof
+EOF
+)
+  saved_config=$(<"$home_dir/.aiwrap/providers/glm.json")
+
+  assert_contains "$output" 'Enter your Z.ai API key'
+  assert_contains "$output" 'AUTH=fresh-token'
+  assert_contains "$saved_config" '"auth_token": "fresh-token"'
+}
+
 main() {
   [[ -x "$AIWRAP" ]] || fail "aiwrap missing at $AIWRAP"
   test_aiwrap_dispatches_claude_glm
@@ -210,6 +234,7 @@ main() {
   test_aiwrap_rejects_unsupported_pair
   test_aiwrap_forwards_args_to_selected_tool
   test_aiwrap_preserves_current_working_directory
+  test_aiwrap_creates_missing_provider_config_interactively
   printf 'PASS: test_aiwrap.sh\n'
 }
 

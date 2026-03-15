@@ -31,7 +31,7 @@ aiwrap_load_provider_config() {
   provider_config_sonnet_model=""
   provider_config_opus_model=""
 
-  [[ -f "$file" ]] || aiwrap_die "Missing provider config for '$provider' at $file"
+  [[ -f "$file" ]] || return 1
   jq empty "$file" >/dev/null 2>&1 || aiwrap_die "Malformed provider config at $file"
 
   provider_config_base_url=$(aiwrap_json_string "$file" '.base_url')

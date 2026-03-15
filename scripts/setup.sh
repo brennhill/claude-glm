@@ -44,12 +44,9 @@ main() {
       ;;
   esac
 
-  aiwrap_require_binary "claude" >/dev/null
   install_main
   provider_config_file=$(aiwrap_provider_config_file "$provider")
-  if [[ -f "$provider_config_file" ]]; then
-    aiwrap_load_provider_config "$provider"
-  fi
+  aiwrap_load_provider_config "$provider" || true
 
   if (( reset_token == 0 )) && aiwrap_has_usable_token "${provider_config_auth_token:-}"; then
     printf 'Using existing token in %s\n' "$provider_config_file"
