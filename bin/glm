@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# Shared config helpers keep setup and first-run prompting consistent.
+source "$SCRIPT_DIR/../scripts/lib/glm-config.sh"
+
+glm_load_config
+
+ANTHROPIC_BASE_URL=$(glm_resolve_value "GLM_BASE_URL" "$config_base_url" "$DEFAULT_BASE_URL")
+ANTHROPIC_AUTH_TOKEN=$(glm_resolve_value "GLM_AUTH_TOKEN" "$config_auth_token" "")
+ANTHROPIC_DEFAULT_HAIKU_MODEL=$(glm_resolve_value "GLM_DEFAULT_HAIKU_MODEL" "$config_haiku_model" "$DEFAULT_HAIKU_MODEL")
+ANTHROPIC_DEFAULT_SONNET_MODEL=$(glm_resolve_value "GLM_DEFAULT_SONNET_MODEL" "$config_sonnet_model" "$DEFAULT_SONNET_MODEL")
+ANTHROPIC_DEFAULT_OPUS_MODEL=$(glm_resolve_value "GLM_DEFAULT_OPUS_MODEL" "$config_opus_model" "$DEFAULT_OPUS_MODEL")
+
+if ! glm_has_usable_token "$ANTHROPIC_AUTH_TOKEN"; then
+  ANTHROPIC_AUTH_TOKEN=$(glm_prompt_for_token)
+  glm_write_config "$ANTHROPIC_AUTH_TOKEN"
+  printf 'Saved token to %s\n' "$GLM_CONFIG_FILE" >&2
+fi
+
+if [[ ${1-} == "env" ]]; then
+  printf 'ANTHROPIC_BASE_URL=%s\n' "$ANTHROPIC_BASE_URL"
+  printf 'ANTHROPIC_AUTH_TOKEN=%s\n' "$(glm_redact_token "$ANTHROPIC_AUTH_TOKEN")"
+  printf 'ANTHROPIC_DEFAULT_HAIKU_MODEL=%s\n' "$ANTHROPIC_DEFAULT_HAIKU_MODEL"
+  printf 'ANTHROPIC_DEFAULT_SONNET_MODEL=%s\n' "$ANTHROPIC_DEFAULT_SONNET_MODEL"
+  printf 'ANTHROPIC_DEFAULT_OPUS_MODEL=%s\n' "$ANTHROPIC_DEFAULT_OPUS_MODEL"
+  exit 0
+fi
+
+CLAUDE_BIN=$(glm_require_claude)
+
+exec env \
+  ANTHROPIC_BASE_URL="$ANTHROPIC_BASE_URL" \
+  ANTHROPIC_AUTH_TOKEN="$ANTHROPIC_AUTH_TOKEN" \
+  ANTHROPIC_DEFAULT_HAIKU_MODEL="$ANTHROPIC_DEFAULT_HAIKU_MODEL" \
+  ANTHROPIC_DEFAULT_SONNET_MODEL="$ANTHROPIC_DEFAULT_SONNET_MODEL" \
+  ANTHROPIC_DEFAULT_OPUS_MODEL="$ANTHROPIC_DEFAULT_OPUS_MODEL" \
+  "$CLAUDE_BIN" "$@"

@@ -1,0 +1,9 @@
+{
+  "base_url": "https://api.z.ai/api/anthropic",
+  "auth_token": "your-zai-api-key",
+  "models": {
+    "haiku": "glm-4.5-air",
+    "sonnet": "glm-4.7",
+    "opus": "glm-5"
+  }
+}
