@@ -3,10 +3,10 @@
 set -euo pipefail
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-source "$SCRIPT_DIR/../scripts/lib/aiwrap-config.sh"
+source "$SCRIPT_DIR/../scripts/lib/switchboard-config.sh"
 
 usage() {
-  aiwrap_die "Usage: aiwrap <tool> <provider> [args...]"
+  switchboard_die "Usage: switchboard <tool> <provider> [args...]"
 }
 
 [[ $# -ge 2 ]] || usage
@@ -23,7 +23,7 @@ case "$tool" in
     source "$SCRIPT_DIR/../scripts/lib/tools/codex.sh"
     ;;
   *)
-    aiwrap_die "Unsupported tool '$tool'. Supported tools: claude, codex"
+    switchboard_die "Unsupported tool '$tool'. Supported tools: claude, codex"
     ;;
 esac
 
@@ -37,21 +37,21 @@ case "$provider" in
     provider_claude_defaults
     ;;
   *)
-    aiwrap_die "Unsupported provider '$provider'. Supported providers: glm, claude"
+    switchboard_die "Unsupported provider '$provider'. Supported providers: glm, claude"
     ;;
 esac
 
 if ! "tool_${tool}_supports_provider" "$provider"; then
-  aiwrap_die "Unsupported tool/provider pair: $tool -> $provider"
+  switchboard_die "Unsupported tool/provider pair: $tool -> $provider"
 fi
 
 binary=$("tool_${tool}_binary")
-[[ -n "$binary" ]] || aiwrap_die "Required tool binary '$tool' was not found in PATH"
+[[ -n "$binary" ]] || switchboard_die "Required tool binary '$tool' was not found in PATH"
 
-aiwrap_load_provider_config "$provider" || true
-if ! aiwrap_has_usable_token "$provider_config_auth_token"; then
-  provider_config_auth_token=$(aiwrap_prompt_for_token)
-  aiwrap_write_provider_config "$provider" "$provider_config_auth_token"
+switchboard_load_provider_config "$provider" || true
+if ! switchboard_has_usable_token "$provider_config_auth_token"; then
+  provider_config_auth_token=$(switchboard_prompt_for_token)
+  switchboard_write_provider_config "$provider" "$provider_config_auth_token"
   printf 'Saved token to %s\n' "$provider_config_file" >&2
 fi
 

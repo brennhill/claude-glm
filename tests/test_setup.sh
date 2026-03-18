@@ -31,7 +31,7 @@ EOF
 provider_config_path() {
   local home_dir=$1
   local provider=$2
-  printf '%s/.aiwrap/providers/%s.json' "$home_dir" "$provider"
+  printf '%s/.aiswitchboard/providers/%s.json' "$home_dir" "$provider"
 }
 
 run_setup_interactive() {
@@ -64,7 +64,7 @@ test_setup_prompts_for_token_and_writes_glm_provider_config() {
   saved_config=$(<"$config_file")
 
   assert_contains "$output" 'Enter your Z.ai API key'
-  assert_contains "$output" 'aiwrap installation complete'
+  assert_contains "$output" 'switchboard installation complete'
   assert_contains "$saved_config" '"auth_token": "setup-token"'
 }
 

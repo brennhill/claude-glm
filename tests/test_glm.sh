@@ -37,7 +37,7 @@ EOF
 
 provider_config_path() {
   local home_dir=$1
-  printf '%s/.aiwrap/providers/glm.json' "$home_dir"
+  printf '%s/.aiswitchboard/providers/glm.json' "$home_dir"
 }
 
 run_glm_function() {
@@ -55,14 +55,14 @@ run_glm_function_interactive() {
   expect <<EOF
 log_user 1
 set timeout 5
-spawn env HOME=$home_dir PATH=$path_dir:/usr/bin:/bin bash -lc {source "$HOME/.bashrc"; glm {*}[list $@]}
+spawn env HOME=$home_dir PATH=$path_dir:/usr/bin:/bin bash -lc {source "\$HOME/.bashrc"; glm {*}[list $@]}
 expect "Enter your Z.ai API key:"
 send "$input\r"
 expect eof
 EOF
 }
 
-test_glm_function_delegates_to_aiwrap_claude_glm() {
+test_glm_function_delegates_to_switchboard_claude_glm() {
   local temp_dir home_dir stub_dir output config_file
   temp_dir=$(mktemp -d)
   home_dir="$temp_dir/home"
@@ -101,9 +101,9 @@ test_glm_function_does_not_mutate_parent_shell_env() {
   mkdir -p "$home_dir"
   make_stub_claude "$stub_dir"
   HOME="$home_dir" "$INSTALLER" >/dev/null
-  mkdir -p "$home_dir/.aiwrap/providers"
+  mkdir -p "$home_dir/.aiswitchboard/providers"
 
-  cat >"$home_dir/.aiwrap/providers/glm.json" <<'EOF'
+  cat >"$home_dir/.aiswitchboard/providers/glm.json" <<'EOF'
 {
   "auth_token": "glm-token"
 }
@@ -134,8 +134,8 @@ test_glm_function_prompts_interactively_when_token_missing() {
 }
 
 main() {
-  [[ -x "$ROOT_DIR/bin/aiwrap" ]] || fail "aiwrap missing at $ROOT_DIR/bin/aiwrap"
-  test_glm_function_delegates_to_aiwrap_claude_glm
+  [[ -x "$ROOT_DIR/bin/switchboard" ]] || fail "switchboard missing at $ROOT_DIR/bin/switchboard"
+  test_glm_function_delegates_to_switchboard_claude_glm
   test_glm_function_does_not_mutate_parent_shell_env
   test_glm_function_prompts_interactively_when_token_missing
   printf 'PASS: test_glm.sh\n'

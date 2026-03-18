@@ -5,13 +5,15 @@ set -euo pipefail
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 ROOT_DIR=$(cd "$SCRIPT_DIR/.." && pwd)
 BIN_DIR="$ROOT_DIR/bin"
-TEMPLATE_CONFIG="$ROOT_DIR/templates/zai.json.example"
-TARGET_CONFIG_DIR="${HOME}/.aiwrap/providers"
+TEMPLATE_CONFIG="$ROOT_DIR/templates/provider-glm.json.example"
+TARGET_CONFIG_DIR="${HOME}/.aiswitchboard/providers"
 TARGET_CONFIG="${TARGET_CONFIG_DIR}/glm.json"
 START_MARKER='# >>> glm wrapper >>>'
 LEGACY_END_MARKER='# <<< glm wrapper <<<'
-NEW_START_MARKER='# >>> aiwrap >>>'
-NEW_END_MARKER='# <<< aiwrap <<<'
+LEGACY_AIWRAP_START='# >>> aiwrap >>>'
+LEGACY_AIWRAP_END='# <<< aiwrap <<<'
+NEW_START_MARKER='# >>> switchboard >>>'
+NEW_END_MARKER='# <<< switchboard <<<'
 
 ensure_rc_block() {
   local rc_file=$1
@@ -22,9 +24,16 @@ ensure_rc_block() {
   touch "$rc_file"
 
   temp_file=$(mktemp)
-  awk -v legacy_start="$START_MARKER" -v legacy_end="$LEGACY_END_MARKER" -v start="$NEW_START_MARKER" -v end="$NEW_END_MARKER" '
+  awk -v legacy_start="$START_MARKER" \
+      -v legacy_end="$LEGACY_END_MARKER" \
+      -v legacy_aiwrap_start="$LEGACY_AIWRAP_START" \
+      -v legacy_aiwrap_end="$LEGACY_AIWRAP_END" \
+      -v start="$NEW_START_MARKER" \
+      -v end="$NEW_END_MARKER" '
     $0 == legacy_start { in_block=1; next }
     $0 == legacy_end { in_block=0; next }
+    $0 == legacy_aiwrap_start { in_block=1; next }
+    $0 == legacy_aiwrap_end { in_block=0; next }
     $0 == start { in_block=1; next }
     $0 == end { in_block=0; next }
     !in_block { print }
@@ -35,7 +44,8 @@ ensure_rc_block() {
     cat <<EOF
 $NEW_START_MARKER
 export PATH="$BIN_DIR:\$PATH"
-glm() { aiwrap claude glm "\$@"; }
+swb() { switchboard "\$@"; }
+glm() { switchboard claude glm "\$@"; }
 $NEW_END_MARKER
 EOF
   )
@@ -50,10 +60,18 @@ EOF
 }
 
 install_config() {
+  local legacy_config="${HOME}/.aiwrap/providers/glm.json"
   mkdir -p "$TARGET_CONFIG_DIR"
   if [[ -f "$TARGET_CONFIG" ]]; then
     chmod 600 "$TARGET_CONFIG"
     printf 'Using existing %s\n' "$TARGET_CONFIG"
+    return 0
+  fi
+
+  if [[ -f "$legacy_config" ]]; then
+    cp "$legacy_config" "$TARGET_CONFIG"
+    chmod 600 "$TARGET_CONFIG"
+    printf 'Migrated %s to %s\n' "$legacy_config" "$TARGET_CONFIG"
     return 0
   fi
 
@@ -64,7 +82,7 @@ install_config() {
 }
 
 install_main() {
-  [[ -x "$BIN_DIR/aiwrap" ]] || printf 'Warning: %s is not executable yet.\n' "$BIN_DIR/aiwrap" >&2
+  [[ -x "$BIN_DIR/switchboard" ]] || printf 'Warning: %s is not executable yet.\n' "$BIN_DIR/switchboard" >&2
 
   ensure_rc_block "${HOME}/.zshrc"
   ensure_rc_block "${HOME}/.zprofile"
@@ -72,7 +90,7 @@ install_main() {
   ensure_rc_block "${HOME}/.bash_profile"
   install_config
 
-  printf 'aiwrap installation complete. Restart your shell or source your rc file.\n'
+  printf 'switchboard installation complete. Restart your shell or source your rc file.\n'
 }
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then

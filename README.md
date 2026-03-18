@@ -1,41 +1,42 @@
 <p align="center">
-  <img src="assets/header.svg" alt="AIWrap header" width="100%" />
+  <img src="assets/header.svg" alt="Switchboard header" width="100%" />
 </p>
 
-# AIWrap
+# Switchboard
 
-`aiwrap` is a small launcher that lets one local AI CLI run against a different backend provider.
+`switchboard` is a small launcher that lets one local AI CLI run against a different backend provider.
 
 The core command shape is:
 
 ```bash
-aiwrap <tool> <provider> [tool args...]
+switchboard <tool> <provider> [tool args...]
 ```
 
 This repo currently supports:
 
-- `aiwrap claude glm`
-- `aiwrap codex claude`
+- `switchboard claude glm`
+- `switchboard codex claude`
 
-It also installs a convenience shell function:
+It also installs convenience shell functions:
 
 ```bash
-glm() { aiwrap claude glm "$@"; }
+swb() { switchboard "$@"; }
+glm() { switchboard claude glm "$@"; }
 ```
 
-So `glm` remains the fast path for the original Claude-on-GLM workflow, while `aiwrap` is the real implementation surface.
+So `glm` remains the fast path for the original Claude-on-GLM workflow, while `switchboard` is the real implementation surface.
 
 ## What It Does
 
-AIWrap composes two layers:
+Switchboard composes two layers:
 
 - a **tool adapter** for the local CLI you want to launch
 - a **provider profile** for the backend you want that CLI to talk to
 
 For example:
 
-- `aiwrap claude glm` launches the local `claude` binary with Anthropic-style environment variables pointed at GLM / Z.ai
-- `aiwrap codex claude` launches the local `codex` binary with OpenAI-style environment variables pointed at a Claude provider profile
+- `switchboard claude glm` launches the local `claude` binary with Anthropic-style environment variables pointed at GLM / Z.ai
+- `switchboard codex claude` launches the local `codex` binary with OpenAI-style environment variables pointed at a Claude provider profile
 
 What wrappers like this can do well:
 
@@ -67,8 +68,8 @@ This version is intentionally explicit: unsupported tool/provider pairs fail ins
 
 | Command | Meaning |
 | --- | --- |
-| `aiwrap claude glm` | Run Claude Code against GLM / Z.ai |
-| `aiwrap codex claude` | Run Codex against a Claude provider profile |
+| `switchboard claude glm` | Run Claude Code against GLM / Z.ai |
+| `switchboard codex claude` | Run Codex against a Claude provider profile |
 
 Anything else currently fails with a clear unsupported-pair error.
 
@@ -105,7 +106,7 @@ That:
 - checks that `claude` exists locally
 - runs the installer
 - prompts for the provider token
-- writes provider config under `~/.aiwrap/providers/`
+- writes provider config under `~/.aiswitchboard/providers/`
 
 Provider-specific setup is also supported:
 
@@ -139,8 +140,9 @@ The installer:
   - `~/.zprofile`
   - `~/.bashrc`
   - `~/.bash_profile`
-- installs the `glm()` shell function over `aiwrap claude glm "$@"`
-- bootstraps `~/.aiwrap/providers/glm.json` if it does not exist
+- installs `swb()` over `switchboard "$@"`
+- installs the `glm()` shell function over `switchboard claude glm "$@"`
+- bootstraps `~/.aiswitchboard/providers/glm.json` if it does not exist
 
 After install, restart your shell or source the relevant rc file.
 
@@ -149,13 +151,13 @@ After install, restart your shell or source the relevant rc file.
 Provider config lives under:
 
 ```text
-~/.aiwrap/providers/
+~/.aiswitchboard/providers/
 ```
 
 Examples:
 
-- `~/.aiwrap/providers/glm.json`
-- `~/.aiwrap/providers/claude.json`
+- `~/.aiswitchboard/providers/glm.json`
+- `~/.aiswitchboard/providers/claude.json`
 
 A provider config looks like:
 
@@ -178,28 +180,29 @@ For Codex-oriented provider configs, a `models.default` key is also supported.
 Primary interface:
 
 ```bash
-aiwrap claude glm
-aiwrap claude glm --model sonnet
-aiwrap codex claude
+switchboard claude glm
+switchboard claude glm --model sonnet
+switchboard codex claude
 ```
 
 Convenience function:
 
 ```bash
+swb claude glm
 glm
 glm --help
 glm --print "hello"
 ```
 
-If a wrapped command is run interactively and its provider token is missing, AIWrap prompts for the token, saves it to the matching provider config file, and continues.
+If a wrapped command is run interactively and its provider token is missing, Switchboard prompts for the token, saves it to the matching provider config file, and continues.
 
 ## Creating Your Own Shortcuts
 
-Because `aiwrap` is generic, you can define your own shell functions on top of it:
+Because `switchboard` is generic, you can define your own shell functions on top of it:
 
 ```bash
-cclaude() { aiwrap codex claude "$@"; }
-cglm() { aiwrap codex glm "$@"; }
+cclaude() { switchboard codex claude "$@"; }
+cglm() { switchboard codex glm "$@"; }
 ```
 
 Those examples may still fail today if the underlying pair is unsupported, but the shell pattern is the intended extension model.
@@ -209,7 +212,7 @@ Those examples may still fail today if the underlying pair is unsupported, but t
 Run the current test suite:
 
 ```bash
-bash tests/test_aiwrap.sh
+bash tests/test_switchboard.sh
 bash tests/test_setup.sh
 bash tests/test_install.sh
 bash tests/test_glm.sh
@@ -218,37 +221,39 @@ bash tests/test_glm.sh
 Smoke checks:
 
 ```bash
-aiwrap claude glm --help
-aiwrap codex claude --help
+switchboard claude glm --help
+switchboard codex claude --help
+type swb
 type glm
 ```
 
 ## Repo Layout
 
-- `bin/aiwrap`: primary launcher
+- `bin/switchboard`: primary launcher
 - `assets/header.svg`: README banner image
 - `scripts/install.sh`: shell installer
 - `scripts/setup.sh`: interactive provider setup and token rotation
 - `scripts/lib/tools/`: tool adapters
 - `scripts/lib/providers/`: provider profiles
-- `scripts/lib/aiwrap-config.sh`: shared config helpers
-- `templates/zai.json.example`: seed JSON used for provider bootstrap
-- `tests/test_aiwrap.sh`: core dispatch tests
+- `scripts/lib/switchboard-config.sh`: shared config helpers
+- `templates/provider-glm.json.example`: seed JSON used for provider bootstrap
+- `tests/test_switchboard.sh`: core dispatch tests
 - `tests/test_setup.sh`: setup tests
 - `tests/test_install.sh`: install tests
 - `tests/test_glm.sh`: compatibility tests for the `glm()` shell function
 
 ## Troubleshooting
 
-If `aiwrap` is not found:
+If `switchboard` is not found:
 
 - open a new shell
 - check that this repo's `bin` directory is on `PATH`
 - rerun `scripts/install.sh`
 
-If `glm` is not found:
+If `glm` or `swb` is not found:
 
 - source your shell rc file again
+- run `type swb`
 - run `type glm`
 - confirm the managed shell block was written successfully
 
